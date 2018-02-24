@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
+import webbrowser
 
 def getSongs():
 	http = urllib3.PoolManager()
@@ -22,8 +23,10 @@ def getSongs():
 		songDetails.append([])
 		songDetails[i].append([])
 		songDetails[i].append([])
+		songDetails[i].append([])
 		songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].string
 		songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].string
+		songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
 		i = i + 1
 
 
@@ -34,8 +37,8 @@ def getSongs():
 			songs.append([])
 			for iter in tags:
 				if iter.strip() != "Album" and iter.strip() != "Single":
-					songs[2].append([])
-					songs[2][j] = iter.strip()
+					songs[3].append([])
+					songs[3][j] = iter.strip()
 					j = j + 1
 
 	r2 = http.request('GET', 'https://myanimelist.net/animelist/Shironi')
@@ -49,10 +52,10 @@ def getSongs():
 	for anime in list:
 		for songs in songDetails:
 			if songs[0] is not None:
-				for tag in songs[2]:
+				for tag in songs[3]:
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70:
-						wantedSongs.append([songs[0], tag, anime, results])
+						wantedSongs.append([songs[0], tag, anime, str(results), songs[2]])
 
 	return wantedSongs
 
@@ -63,70 +66,82 @@ class Ui_Form(QtWidgets.QWidget):
 		self.setupUi(self)
 
 	def setupUi(self, Form):
+		width = 800
 		Form.setObjectName("Form")
-		Form.resize(820, 820)
+		Form.resize(width + 20, width + 20)
 		self.formLayoutWidget = QtWidgets.QWidget(Form)
-		self.formLayoutWidget.setGeometry(QtCore.QRect(10, 10, 810, 810))
+		self.formLayoutWidget.setGeometry(QtCore.QRect(10, 10, width + 10, width + 10))
 		self.formLayoutWidget.setObjectName("formLayoutWidget")
+
 		self.formLayout = QtWidgets.QFormLayout(self.formLayoutWidget)
 		self.formLayout.setContentsMargins(0, 0, 0, 0)
 		self.formLayout.setObjectName("formLayout")
 		self.formLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
 		self.formLayout.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldsStayAtSizeHint)
-		self.tableWidget = QtWidgets.QTableWidget(self.formLayoutWidget)
+
+		self.SongTable = QtWidgets.QTableWidget(self.formLayoutWidget)
 		sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-		sizePolicy.setHorizontalStretch(1)
-		sizePolicy.setVerticalStretch(1)
-		#sizePolicy.setHeightForWidth(self.tableWidget.sizePolicy().hasHeightForWidth())
-		self.tableWidget.setSizePolicy(sizePolicy)
-		self.tableWidget.setLineWidth(1)
-		self.tableWidget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
-		self.tableWidget.setShowGrid(True)
-		self.tableWidget.setGridStyle(QtCore.Qt.SolidLine)
-		self.tableWidget.setRowCount(len(self.wantedSongs))
-		self.tableWidget.setColumnCount(4)
-		self.tableWidget.setObjectName("tableWidget")
-		item = QtWidgets.QTableWidgetItem()
-		self.tableWidget.setHorizontalHeaderItem(0, item)
-		item = QtWidgets.QTableWidgetItem()
-		self.tableWidget.setHorizontalHeaderItem(1, item)
-		item = QtWidgets.QTableWidgetItem()
-		self.tableWidget.setHorizontalHeaderItem(2, item)
-		item = QtWidgets.QTableWidgetItem()
-		self.tableWidget.setHorizontalHeaderItem(3, item)
-		self.tableWidget.horizontalHeader().setVisible(True)
-		self.tableWidget.horizontalHeader().setCascadingSectionResizes(True)
-		self.tableWidget.horizontalHeader().setStretchLastSection(True)
-		self.tableWidget.horizontalHeader().setDefaultSectionSize(200)
-		self.tableWidget.verticalHeader().setVisible(False)
-		self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.tableWidget)
+		self.SongTable.setSizePolicy(sizePolicy)
+		self.SongTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
+		self.SongTable.setGridStyle(QtCore.Qt.SolidLine)
+		self.SongTable.setRowCount(len(self.wantedSongs))
+		self.SongTable.setColumnCount(5)
+		self.SongTable.setObjectName("SongTable")
+		self.SongTable.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem())
+		self.SongTable.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem())
+		self.SongTable.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem())
+		self.SongTable.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem())
+		self.SongTable.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem())
+		self.SongTable.horizontalHeader().setCascadingSectionResizes(True)
+		self.SongTable.horizontalHeader().setStretchLastSection(False)
+		self.SongTable.horizontalHeader().setDefaultSectionSize(width/5)
+		self.SongTable.verticalHeader().setVisible(False)
+		self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.SongTable)
 
 		self.retranslateUi(Form)
 		QtCore.QMetaObject.connectSlotsByName(Form)
 		self.populateTable(Form)
+		self.highlightSongs(Form)
 
 	def retranslateUi(self, Form):
 		_translate = QtCore.QCoreApplication.translate
 		Form.setWindowTitle(_translate("Form", "Form"))
-		item = self.tableWidget.horizontalHeaderItem(0)
-		item.setText(_translate("Form", "Song name"))
-		item = self.tableWidget.horizontalHeaderItem(1)
-		item.setText(_translate("Form", "Tag"))
-		item = self.tableWidget.horizontalHeaderItem(2)
-		item.setText(_translate("Form", "Anime"))
-		item = self.tableWidget.horizontalHeaderItem(3)
-		item.setText(_translate("Form", "Fuzzy score"))
+		self.SongTable.horizontalHeaderItem(0).setText(_translate("Form", "Song name"))
+		self.SongTable.horizontalHeaderItem(1).setText(_translate("Form", "Tag"))
+		self.SongTable.horizontalHeaderItem(2).setText(_translate("Form", "Anime"))
+		self.SongTable.horizontalHeaderItem(3).setText(_translate("Form", "Fuzzy score"))
+		self.SongTable.horizontalHeaderItem(4).setText(_translate("Form", "Link"))
 
 	def populateTable(self, Form):
 		for i in range(len(self.wantedSongs)):
-			self.tableWidget.setItem(i, 0, QtWidgets.QTableWidgetItem(self.wantedSongs[i][0]))
-			self.tableWidget.setItem(i, 1, QtWidgets.QTableWidgetItem(self.wantedSongs[i][1]))
-			self.tableWidget.setItem(i, 2, QtWidgets.QTableWidgetItem(self.wantedSongs[i][2]))
-			self.tableWidget.setItem(i, 3, QtWidgets.QTableWidgetItem(str(self.wantedSongs[i][3])))
+			self.SongTable.setItem(i, 0, QtWidgets.QTableWidgetItem(self.wantedSongs[i][0]))
+			self.SongTable.setItem(i, 1, QtWidgets.QTableWidgetItem(self.wantedSongs[i][1]))
+			self.SongTable.setItem(i, 2, QtWidgets.QTableWidgetItem(self.wantedSongs[i][2]))
+			self.SongTable.setItem(i, 3, QtWidgets.QTableWidgetItem(self.wantedSongs[i][3]))
+			self.SongTable.setItem(i, 4, QtWidgets.QTableWidgetItem(self.wantedSongs[i][4]))
+
+		self.SongTable.itemDoubleClicked.connect(self.OpenLink)
+
+	def OpenLink(self, item):
+		if item.column() == 4:
+			webbrowser.open(item.text())
 
 
+	def highlightSongs(self, Form):
+		with open("seen.txt", "r", encoding="utf-8-sig") as f:
+			seenSongs = [x.strip() for x in f.readlines()]
 
-app = QtWidgets.QApplication(sys.argv)
-ex = Ui_Form()
-ex.show()
-sys.exit(app.exec_())
+		for i in range(len(self.wantedSongs)):
+			if self.wantedSongs[i][0] in seenSongs:
+				self.SongTable.item(i, 0).setForeground(QtGui.QColor(162, 175, 196))
+				self.SongTable.item(i, 1).setForeground(QtGui.QColor(162, 175, 196))
+				self.SongTable.item(i, 2).setForeground(QtGui.QColor(162, 175, 196))
+				self.SongTable.item(i, 3).setForeground(QtGui.QColor(162, 175, 196))
+				self.SongTable.item(i, 4).setForeground(QtGui.QColor(162, 175, 196))
+
+
+if __name__ == "__main__":
+	app = QtWidgets.QApplication(sys.argv)
+	ex = Ui_Form()
+	ex.show()
+	sys.exit(app.exec_())
