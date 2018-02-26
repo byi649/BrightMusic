@@ -21,26 +21,20 @@ def getSongs():
 	i = 0
 
 	for tag in units:
-		songDetails.append([])
-		songDetails[i].append([])
-		songDetails[i].append([])
-		songDetails[i].append([])
+		songDetails.append([[],[],[],[]])
 		songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
 		songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
 		songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
 		i = i + 1
 
-
 	for songs in songDetails:
-		j = 0
 		if songs[0] is not None:
 			tags = songs[1].split("|")
-			songs.append([])
 			for iter in tags:
 				if iter.strip() != "Album" and iter.strip() != "Single":
-					songs[3].append([])
-					songs[3][j] = iter.strip()
-					j = j + 1
+					songs[3].append(iter.strip())
+		else:
+			raise UserWarning
 
 	r2 = http.request('GET', 'https://myanimelist.net/animelist/Shironi')
 	malsoup = BeautifulSoup(r2.data, "lxml")
@@ -62,6 +56,7 @@ def getSongs():
 
 def getSongTitle(url):
 	r = requests.get(url).text
+	# TODO: super fragile, replace with something more robust
 	name = regex.findall(r'(?<=>01 ).+?(?=<)', r)[0]
 	return name
 
