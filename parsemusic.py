@@ -24,8 +24,8 @@ def getSongs():
 		songDetails[i].append([])
 		songDetails[i].append([])
 		songDetails[i].append([])
-		songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].string
-		songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].string
+		songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
+		songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
 		songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
 		i = i + 1
 
@@ -125,7 +125,6 @@ class Ui_Form(QtWidgets.QWidget):
 	def OpenLink(self, item):
 		if item.column() == 4:
 			webbrowser.open(item.text())
-
 
 	def highlightSongs(self, Form):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
