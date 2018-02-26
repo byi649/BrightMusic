@@ -1,4 +1,5 @@
 import urllib3
+import requests
 import regex
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
@@ -55,9 +56,14 @@ def getSongs():
 				for tag in songs[3]:
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70:
-						wantedSongs.append([songs[0], tag, anime, str(results), songs[2]])
+						wantedSongs.append([getSongTitle(songs[2]), tag, anime, str(results), songs[2]])
 
 	return wantedSongs
+
+def getSongTitle(url):
+	r = requests.get(url).text
+	name = regex.findall(r'(?<=>01 ).+?(?=<)', r)[0]
+	return name
 
 class Ui_Form(QtWidgets.QWidget):
 	def __init__(self):
@@ -128,10 +134,12 @@ class Ui_Form(QtWidgets.QWidget):
 
 	def highlightSongs(self, Form):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
-			seenSongs = [x.strip() for x in f.readlines()]
+			# Song Name | Album
+			seenSongs = [x.split(" | ") for x in f.readlines()]
+			seenSongs = [[x[0].strip(), x[1].strip()] for x in seenSongs]
 
 		for i in range(len(self.wantedSongs)):
-			if self.wantedSongs[i][0] in seenSongs:
+			if [self.wantedSongs[i][0], self.wantedSongs[i][2]] in seenSongs:
 				self.SongTable.item(i, 0).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 1).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 2).setForeground(QtGui.QColor(162, 175, 196))
