@@ -141,9 +141,22 @@ class Ui_Form(QtWidgets.QWidget):
 				self.SongTable.item(i, 3).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 4).setForeground(QtGui.QColor(162, 175, 196))
 
-
-if __name__ == "__main__":
+def main():
 	app = QtWidgets.QApplication(sys.argv)
 	ex = Ui_Form()
 	ex.show()
 	sys.exit(app.exec_())
+
+if __name__ == "__main__":
+
+	# Profile main()
+	if False:
+		import pstats
+		import cProfile
+
+		cProfile.run('main()', 'profile.tmp')
+		p = pstats.Stats('profile.tmp')
+		p.sort_stats('time').print_stats(10)
+
+	else:
+		main()
