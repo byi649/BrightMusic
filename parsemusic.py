@@ -57,7 +57,10 @@ def getSongs():
 def getSongTitle(url):
 	r = requests.get(url).text
 	# TODO: super fragile, replace with something more robust
-	name = regex.findall(r'(?<=>01 ).+?(?=<)', r)[0]
+	try:
+		name = regex.findall(r'(?<=>01 ).+?(?=<)', r)[0]
+	except:
+		name = regex.findall(r'(?<=> 01 ).+?(?=<)', r)[0]
 	return name
 
 class Ui_Form(QtWidgets.QWidget):
