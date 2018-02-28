@@ -52,7 +52,20 @@ def getSongs():
 					if results > 70:
 						wantedSongs.append([getSongTitle(songs[2]), tag, anime, str(results), songs[2]])
 
-	return wantedSongs
+
+	# Very inefficient - TODO: cut down on the loops
+	filteredSongs = []
+
+	for i in range(len(wantedSongs)):
+		if wantedSongs[i][0] in [x[0] for x in filteredSongs]:
+			for j in range(len(filteredSongs)):
+				if wantedSongs[i][0] == filteredSongs[j][0] and wantedSongs[i][3] > filteredSongs[j][3]:
+					del filteredSongs[j]
+					filteredSongs.insert(j, wantedSongs[i])
+		else:
+			filteredSongs.append(wantedSongs[i])
+
+	return filteredSongs
 
 def getSongTitle(url):
 	r = requests.get(url).text
