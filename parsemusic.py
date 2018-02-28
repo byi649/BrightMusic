@@ -8,33 +8,37 @@ import sys
 import webbrowser
 
 def getSongs():
-	http = urllib3.PoolManager()
-	r = http.request('GET', 'http://hikarinoakariost.info/')
-	soup = BeautifulSoup(r.data, "lxml")
-
-	recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
-	units = recent.find_all("div", "td-block-span6")
-
-	nSongs = len(units)
 
 	songDetails = []
 	i = 0
+	nSongs = 0
 
-	for tag in units:
-		songDetails.append([[],[],[],[]])
-		songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
-		songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
-		songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
-		i = i + 1
+	http = urllib3.PoolManager()
 
-	for songs in songDetails:
-		if songs[0] is not None:
-			tags = songs[1].split("|")
-			for iter in tags:
-				if iter.strip() != "Album" and iter.strip() != "Single":
-					songs[3].append(iter.strip())
-		else:
-			raise UserWarning
+	for count in range(3):
+		r = http.request('GET', 'http://hikarinoakariost.info/page/' + str(count + 1))
+		soup = BeautifulSoup(r.data, "lxml")
+
+		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
+		units = recent.find_all("div", "td-block-span6")
+
+		nSongs = nSongs + len(units)
+
+		for tag in units:
+			songDetails.append([[],[],[],[]])
+			songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
+			songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
+			songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
+			i = i + 1
+
+		for songs in songDetails:
+			if songs[0] is not None:
+				tags = songs[1].split("|")
+				for iter in tags:
+					if iter.strip() != "Album" and iter.strip() != "Single":
+						songs[3].append(iter.strip())
+			else:
+				raise UserWarning
 
 	r2 = http.request('GET', 'https://myanimelist.net/animelist/Shironi')
 	malsoup = BeautifulSoup(r2.data, "lxml")
@@ -69,12 +73,18 @@ def getSongs():
 
 def getSongTitle(url):
 	r = requests.get(url).text
+	# Parse these formats, regardless of whitespace:
+	# > 01 SONGNAME
+	# > 1 SONGNAME
+	# > 1. SONGNAME
+	# > 01. SONGNAME
 	# TODO: super fragile, replace with something more robust
 	try:
-		name = regex.findall(r'(?<=>01 ).+?(?=<)', r)[0]
+		name = regex.findall(r'(?<=>[\s0]*1\.*\s*).+?(?=<)', r)[0]
 	except:
-		name = regex.findall(r'(?<=> 01 ).+?(?=<)', r)[0]
-	return name
+		print(url)
+		name = "Could not parse"
+	return name.strip()
 
 class Ui_Form(QtWidgets.QWidget):
 	def __init__(self):
@@ -98,7 +108,7 @@ class Ui_Form(QtWidgets.QWidget):
 
 		self.SongTable = QtWidgets.QTableWidget(self.formLayoutWidget)
 		sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-		self.SongTable.setSizePolicy(sizePolicy)
+		# self.SongTable.setSizePolicy(sizePolicy)
 		self.SongTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
 		self.SongTable.setGridStyle(QtCore.Qt.SolidLine)
 		self.SongTable.setRowCount(len(self.wantedSongs))
@@ -151,6 +161,7 @@ class Ui_Form(QtWidgets.QWidget):
 
 		for i in range(len(self.wantedSongs)):
 			if [self.wantedSongs[i][0], self.wantedSongs[i][2]] in seenSongs:
+				# TODO: do a fuzzy search for album name
 				self.SongTable.item(i, 0).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 1).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 2).setForeground(QtGui.QColor(162, 175, 196))
