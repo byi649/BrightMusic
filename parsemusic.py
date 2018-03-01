@@ -6,6 +6,7 @@ from fuzzywuzzy import fuzz
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
 import webbrowser
+from datetime import datetime
 
 def getSongs():
 
@@ -16,6 +17,7 @@ def getSongs():
 	http = urllib3.PoolManager()
 
 	for count in range(3):
+		print(str(datetime.now()), ": Downloading page", str(count+1))
 		r = http.request('GET', 'http://hikarinoakariost.info/page/' + str(count + 1))
 		soup = BeautifulSoup(r.data, "lxml")
 
@@ -31,15 +33,16 @@ def getSongs():
 			songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
 			i = i + 1
 
-		for songs in songDetails:
-			if songs[0] is not None:
-				tags = songs[1].split("|")
-				for iter in tags:
-					if iter.strip() != "Album" and iter.strip() != "Single":
-						songs[3].append(iter.strip())
-			else:
-				raise UserWarning
+	for songs in songDetails:
+		if songs[0] is not None:
+			tags = songs[1].split("|")
+			for iter in tags:
+				if iter.strip() != "Album" and iter.strip() != "Single":
+					songs[3].append(iter.strip())
+		else:
+			raise UserWarning
 
+	print(str(datetime.now()), ": Downloading MAL page")
 	r2 = http.request('GET', 'https://myanimelist.net/animelist/Shironi')
 	malsoup = BeautifulSoup(r2.data, "lxml")
 
@@ -54,8 +57,9 @@ def getSongs():
 				for tag in songs[3]:
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70:
-						wantedSongs.append([getSongTitle(songs[2]), tag, anime, str(results), songs[2]])
-
+						songTitle = getSongTitle(songs[2])
+						if songTitle == "Unparsed": songTitle = songs[0]
+						wantedSongs.append([songTitle, tag, anime, str(results), songs[2], songs[0]])
 
 	# Very inefficient - TODO: cut down on the loops
 	filteredSongs = []
@@ -72,6 +76,7 @@ def getSongs():
 	return filteredSongs
 
 def getSongTitle(url):
+	print(str(datetime.now()), ": Downloading song page", url)
 	r = requests.get(url).text
 	# Parse these formats, regardless of whitespace:
 	# > 01 SONGNAME
@@ -80,10 +85,10 @@ def getSongTitle(url):
 	# > 01. SONGNAME
 	# TODO: super fragile, replace with something more robust
 	try:
-		name = regex.findall(r'(?<=>[\s0]*1\.*\s*).+?(?=<)', r)[0]
+		name = regex.findall(r'(?<=>[\s0]*1[.\s]+).+?(?=<)', r)[0]
 	except:
 		print(url)
-		name = "Could not parse"
+		name = "Unparsed"
 	return name.strip()
 
 class Ui_Form(QtWidgets.QWidget):
@@ -157,10 +162,17 @@ class Ui_Form(QtWidgets.QWidget):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
 			# Song Name | Album
 			seenSongs = [x.split(" | ") for x in f.readlines()]
-			seenSongs = [[x[0].strip(), x[1].strip()] for x in seenSongs]
+			seenSongs = [x[0].strip() for x in seenSongs]
 
 		for i in range(len(self.wantedSongs)):
-			if [self.wantedSongs[i][0], self.wantedSongs[i][2]] in seenSongs:
+			if self.wantedSongs[i][5].lower().find("character song") > 0:
+				self.SongTable.item(i, 0).setForeground(QtGui.QColor(35, 118, 252))
+				self.SongTable.item(i, 1).setForeground(QtGui.QColor(35, 118, 252))
+				self.SongTable.item(i, 2).setForeground(QtGui.QColor(35, 118, 252))
+				self.SongTable.item(i, 3).setForeground(QtGui.QColor(35, 118, 252))
+				self.SongTable.item(i, 4).setForeground(QtGui.QColor(35, 118, 252))
+
+			if self.wantedSongs[i][0] in seenSongs:
 				# TODO: do a fuzzy search for album name
 				self.SongTable.item(i, 0).setForeground(QtGui.QColor(162, 175, 196))
 				self.SongTable.item(i, 1).setForeground(QtGui.QColor(162, 175, 196))
