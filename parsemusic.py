@@ -1,4 +1,3 @@
-import urllib3
 import requests
 import regex
 from bs4 import BeautifulSoup
@@ -7,19 +6,34 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
 import webbrowser
 from datetime import datetime
+import multiprocessing
+from tkinter import *
+from tkinter import ttk
+import html
+import codecs
 
-def getSongs():
+def main():
+
+	pagesToGet = 10
+	global songArray
+	songArray = getSongs(pagesToGet)
+
+	ui = Ui_Form()
+
+def getSongs(pages):
 
 	songDetails = []
 	i = 0
 	nSongs = 0
 
-	http = urllib3.PoolManager()
+	pool = multiprocessing.Pool(processes=5)
+	FrontPageList = pool.map(getFrontPage, [x + 1 for x in range(pages)])
 
-	for count in range(3):
-		print(str(datetime.now()), ": Downloading page", str(count+1))
-		r = http.request('GET', 'http://hikarinoakariost.info/page/' + str(count + 1))
-		soup = BeautifulSoup(r.data, "lxml")
+	for count in range(pages):
+		#print(str(datetime.now()), ": Downloading page", str(count+1))
+		#r = http.request('GET', 'http://hikarinoakariost.info/page/' + str(count + 1))
+		r = FrontPageList[count]
+		soup = BeautifulSoup(r.content, "lxml")
 
 		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
 		units = recent.find_all("div", "td-block-span6")
@@ -43,28 +57,33 @@ def getSongs():
 			raise UserWarning
 
 	print(str(datetime.now()), ": Downloading MAL page")
-	r2 = http.request('GET', 'https://myanimelist.net/animelist/Shironi')
-	malsoup = BeautifulSoup(r2.data, "lxml")
+	r2 = requests.get('https://myanimelist.net/animelist/Shironi')
+	malsoup = BeautifulSoup(r2.content, "lxml")
 
 	list = malsoup.find_all("table")[0]['data-items']
 	list = regex.findall(r'(?<="anime_title":").+?(?=")', list, flags=regex.IGNORECASE)
 
 	wantedSongs = []
+	parseList = []
 
 	for anime in list:
 		for songs in songDetails:
 			if songs[0] is not None:
 				for tag in songs[3]:
+					anime = decode_escapes(anime)
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70:
-						songTitle = getSongTitle(songs[2])
-						if songTitle == "Unparsed": songTitle = songs[0]
-						wantedSongs.append([songTitle, tag, anime, str(results), songs[2], songs[0]])
+						parseList.append(songs[2])
+						wantedSongs.append([songs[0], tag, anime, str(results), songs[2], songs[0]])
+
+	pool = multiprocessing.Pool(processes=10)
+	songTitleList = pool.map(getSongTitle, parseList)
 
 	# Very inefficient - TODO: cut down on the loops
 	filteredSongs = []
 
 	for i in range(len(wantedSongs)):
+		wantedSongs[i][0] = songTitleList[i]
 		if wantedSongs[i][0] in [x[0] for x in filteredSongs]:
 			for j in range(len(filteredSongs)):
 				if wantedSongs[i][0] == filteredSongs[j][0] and wantedSongs[i][3] > filteredSongs[j][3]:
@@ -74,6 +93,11 @@ def getSongs():
 			filteredSongs.append(wantedSongs[i])
 
 	return filteredSongs
+
+def getFrontPage(pageNumber):
+	print(str(datetime.now()), ": Downloading page", str(pageNumber))
+	r = requests.get('http://hikarinoakariost.info/page/' + str(pageNumber))
+	return r
 
 def getSongTitle(url):
 	print(str(datetime.now()), ": Downloading song page", url)
@@ -89,102 +113,87 @@ def getSongTitle(url):
 	except:
 		print(url)
 		name = "Unparsed"
-	return name.strip()
+	return html.unescape(name.strip())
 
-class Ui_Form(QtWidgets.QWidget):
+class Ui_Form():
+
 	def __init__(self):
-		super(self.__class__, self).__init__()
-		self.wantedSongs = getSongs()
-		self.setupUi(self)
+		self.root = Tk()
+		self.root.Title = "Songs"
 
-	def setupUi(self, Form):
-		width = 800
-		Form.setObjectName("Form")
-		Form.resize(width + 20, width + 20)
-		self.formLayoutWidget = QtWidgets.QWidget(Form)
-		self.formLayoutWidget.setGeometry(QtCore.QRect(10, 10, width + 10, width + 10))
-		self.formLayoutWidget.setObjectName("formLayoutWidget")
+		self.fillTable()
+		self.highlightSongs()
 
-		self.formLayout = QtWidgets.QFormLayout(self.formLayoutWidget)
-		self.formLayout.setContentsMargins(0, 0, 0, 0)
-		self.formLayout.setObjectName("formLayout")
-		self.formLayout.setSizeConstraint(QtWidgets.QLayout.SetFixedSize)
-		self.formLayout.setFieldGrowthPolicy(QtWidgets.QFormLayout.FieldsStayAtSizeHint)
+		self.root.mainloop()
 
-		self.SongTable = QtWidgets.QTableWidget(self.formLayoutWidget)
-		sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-		# self.SongTable.setSizePolicy(sizePolicy)
-		self.SongTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
-		self.SongTable.setGridStyle(QtCore.Qt.SolidLine)
-		self.SongTable.setRowCount(len(self.wantedSongs))
-		self.SongTable.setColumnCount(5)
-		self.SongTable.setObjectName("SongTable")
-		self.SongTable.setHorizontalHeaderItem(0, QtWidgets.QTableWidgetItem())
-		self.SongTable.setHorizontalHeaderItem(1, QtWidgets.QTableWidgetItem())
-		self.SongTable.setHorizontalHeaderItem(2, QtWidgets.QTableWidgetItem())
-		self.SongTable.setHorizontalHeaderItem(3, QtWidgets.QTableWidgetItem())
-		self.SongTable.setHorizontalHeaderItem(4, QtWidgets.QTableWidgetItem())
-		self.SongTable.horizontalHeader().setCascadingSectionResizes(True)
-		self.SongTable.horizontalHeader().setStretchLastSection(False)
-		self.SongTable.horizontalHeader().setDefaultSectionSize(width/5)
-		self.SongTable.verticalHeader().setVisible(False)
-		self.formLayout.setWidget(0, QtWidgets.QFormLayout.LabelRole, self.SongTable)
+	def fillTable(self):
+		columns = ['Tag', 'Anime', 'Fuzzy', 'Link']
+		self.tree = ttk.Treeview(self.root, columns = (columns), height = (len(songArray)))
+		self.tree.pack(side='left', fill = 'y')
 
-		self.retranslateUi(Form)
-		QtCore.QMetaObject.connectSlotsByName(Form)
-		self.populateTable(Form)
-		self.highlightSongs(Form)
+		self.vsb = ttk.Scrollbar(self.root, orient = "vertical", command = self.tree.yview)
+		self.vsb.pack(side='right', fill = 'y')
+		self.vsb.pack_propagate(False)
+		self.tree.configure(yscrollcommand=self.vsb.set)
 
-	def retranslateUi(self, Form):
-		_translate = QtCore.QCoreApplication.translate
-		Form.setWindowTitle(_translate("Form", "Form"))
-		self.SongTable.horizontalHeaderItem(0).setText(_translate("Form", "Song name"))
-		self.SongTable.horizontalHeaderItem(1).setText(_translate("Form", "Tag"))
-		self.SongTable.horizontalHeaderItem(2).setText(_translate("Form", "Anime"))
-		self.SongTable.horizontalHeaderItem(3).setText(_translate("Form", "Fuzzy score"))
-		self.SongTable.horizontalHeaderItem(4).setText(_translate("Form", "Link"))
+		self.tree.bind('<Double-1>', self.itemClicked)
 
-	def populateTable(self, Form):
-		for i in range(len(self.wantedSongs)):
-			self.SongTable.setItem(i, 0, QtWidgets.QTableWidgetItem(self.wantedSongs[i][0]))
-			self.SongTable.setItem(i, 1, QtWidgets.QTableWidgetItem(self.wantedSongs[i][1]))
-			self.SongTable.setItem(i, 2, QtWidgets.QTableWidgetItem(self.wantedSongs[i][2]))
-			self.SongTable.setItem(i, 3, QtWidgets.QTableWidgetItem(self.wantedSongs[i][3]))
-			self.SongTable.setItem(i, 4, QtWidgets.QTableWidgetItem(self.wantedSongs[i][4]))
+		for items in columns:
+			self.tree.column(items, width=300)
+			self.tree.heading(items, text=items)
 
-		self.SongTable.itemDoubleClicked.connect(self.OpenLink)
+		self.tree.column('Fuzzy', width = 50)
 
-	def OpenLink(self, item):
-		if item.column() == 4:
-			webbrowser.open(item.text())
+		i = 0
+		for song in songArray:
+			valueString = '"' + song[1] + '" ' + '"' + song[2] + '" ' + '"' +  song[3] + '" ' + '"' + song[4] + '"'
+			self.tree.insert('', 'end', 'song' + str(i), text=song[0], values = (song[1:5]))
+			i = i + 1
 
-	def highlightSongs(self, Form):
+
+	def highlightSongs(self):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
 			# Song Name | Album
 			seenSongs = [x.split(" | ") for x in f.readlines()]
 			seenSongs = [x[0].strip() for x in seenSongs]
 
-		for i in range(len(self.wantedSongs)):
-			if self.wantedSongs[i][5].lower().find("character song") > 0:
-				self.SongTable.item(i, 0).setForeground(QtGui.QColor(35, 118, 252))
-				self.SongTable.item(i, 1).setForeground(QtGui.QColor(35, 118, 252))
-				self.SongTable.item(i, 2).setForeground(QtGui.QColor(35, 118, 252))
-				self.SongTable.item(i, 3).setForeground(QtGui.QColor(35, 118, 252))
-				self.SongTable.item(i, 4).setForeground(QtGui.QColor(35, 118, 252))
+		for i in range(len(songArray)):
+			if songArray[i][5].lower().find("character song") > 0:
+				self.tree.item('song' + str(i), tags = "cSong")
 
-			if self.wantedSongs[i][0] in seenSongs:
+			if songArray[i][0] in seenSongs:
 				# TODO: do a fuzzy search for album name
-				self.SongTable.item(i, 0).setForeground(QtGui.QColor(162, 175, 196))
-				self.SongTable.item(i, 1).setForeground(QtGui.QColor(162, 175, 196))
-				self.SongTable.item(i, 2).setForeground(QtGui.QColor(162, 175, 196))
-				self.SongTable.item(i, 3).setForeground(QtGui.QColor(162, 175, 196))
-				self.SongTable.item(i, 4).setForeground(QtGui.QColor(162, 175, 196))
+				self.tree.item('song' + str(i), tags = "sSong")
 
-def main():
-	app = QtWidgets.QApplication(sys.argv)
-	ex = Ui_Form()
-	ex.show()
-	sys.exit(app.exec_())
+			if songArray[i][0] == "Unparsed":
+				# TODO: do a fuzzy search for album name
+				self.tree.item('song' + str(i), tags = "pSong")
+
+		self.tree.tag_configure('cSong', foreground = '#%02x%02x%02x' % (35, 118, 252))
+		self.tree.tag_configure('sSong', foreground = '#%02x%02x%02x' % (162, 175, 196))
+		self.tree.tag_configure('pSong', foreground = '#%02x%02x%02x' % (206, 20, 73))
+
+
+	def itemClicked(self, event):
+		song = self.tree.selection()[0]
+		print(self.tree.item(song).get('values')[3])
+		webbrowser.open(self.tree.item(song).get('values')[3])
+
+def decode_escapes(s):
+	# Blame Yuru Camp△
+	ESCAPE_SEQUENCE_RE = re.compile(r'''
+		( \\U........      # 8-digit hex escapes
+		| \\u....          # 4-digit hex escapes
+		| \\x..            # 2-digit hex escapes
+		| \\[0-7]{1,3}     # Octal escapes
+		| \\N\{[^}]+\}     # Unicode characters by name
+		| \\[\\'"abfnrtv]  # Single-character escapes
+		)''', re.UNICODE | re.VERBOSE)
+
+	def decode_match(match):
+		return codecs.decode(match.group(0), 'unicode-escape')
+
+	return ESCAPE_SEQUENCE_RE.sub(decode_match, s)
 
 if __name__ == "__main__":
 
