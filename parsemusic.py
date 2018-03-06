@@ -2,7 +2,6 @@ import requests
 import regex
 from bs4 import BeautifulSoup
 from fuzzywuzzy import fuzz
-from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
 import webbrowser
 from datetime import datetime
@@ -11,14 +10,16 @@ from tkinter import *
 from tkinter import ttk
 import html
 import codecs
+import romkan
+
 
 def main():
 
-	pagesToGet = 10
-	global songArray
+	pagesToGet = 5
 	songArray = getSongs(pagesToGet)
 
-	ui = Ui_Form()
+	ui = Ui_Form(songArray)
+
 
 def getSongs(pages):
 
@@ -26,12 +27,10 @@ def getSongs(pages):
 	i = 0
 	nSongs = 0
 
-	pool = multiprocessing.Pool(processes=5)
+	pool = multiprocessing.Pool(processes=10)
 	FrontPageList = pool.map(getFrontPage, [x + 1 for x in range(pages)])
 
 	for count in range(pages):
-		#print(str(datetime.now()), ": Downloading page", str(count+1))
-		#r = http.request('GET', 'http://hikarinoakariost.info/page/' + str(count + 1))
 		r = FrontPageList[count]
 		soup = BeautifulSoup(r.content, "lxml")
 
@@ -41,7 +40,7 @@ def getSongs(pages):
 		nSongs = nSongs + len(units)
 
 		for tag in units:
-			songDetails.append([[],[],[],[]])
+			songDetails.append([[], [], [], []])
 			songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
 			songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
 			songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
@@ -94,10 +93,12 @@ def getSongs(pages):
 
 	return filteredSongs
 
+
 def getFrontPage(pageNumber):
 	print(str(datetime.now()), ": Downloading page", str(pageNumber))
 	r = requests.get('http://hikarinoakariost.info/page/' + str(pageNumber))
 	return r
+
 
 def getSongTitle(url):
 	print(str(datetime.now()), ": Downloading song page", url)
@@ -110,14 +111,19 @@ def getSongTitle(url):
 	# TODO: super fragile, replace with something more robust
 	try:
 		name = regex.findall(r'(?<=>[\s0]*1[.\s]+).+?(?=<)', r)[0]
-	except:
+	except Exception as e:
 		print(url)
 		name = "Unparsed"
-	return html.unescape(name.strip())
+
+	name = html.unescape(name.strip())
+	name = romkan.to_roma(name)
+	return name
+
 
 class Ui_Form():
 
-	def __init__(self):
+	def __init__(self, songArray):
+		self.songArray = songArray
 		self.root = Tk()
 		self.root.Title = "Songs"
 
@@ -128,56 +134,59 @@ class Ui_Form():
 
 	def fillTable(self):
 		columns = ['Tag', 'Anime', 'Fuzzy', 'Link']
-		self.tree = ttk.Treeview(self.root, columns = (columns), height = (len(songArray)))
-		self.tree.pack(side='left', fill = 'y')
+		self.tree = ttk.Treeview(self.root, columns=(columns), height=(len(self.songArray)))
+		self.tree.pack(side='left', fill='y')
 
-		self.vsb = ttk.Scrollbar(self.root, orient = "vertical", command = self.tree.yview)
-		self.vsb.pack(side='right', fill = 'y')
+		self.vsb = ttk.Scrollbar(self.root, orient="vertical", command=self.tree.yview)
+		self.vsb.pack(side='right', fill='y')
 		self.vsb.pack_propagate(False)
 		self.tree.configure(yscrollcommand=self.vsb.set)
 
 		self.tree.bind('<Double-1>', self.itemClicked)
 
 		for items in columns:
-			self.tree.column(items, width=300)
+			self.tree.column(items, width=200)
 			self.tree.heading(items, text=items)
 
-		self.tree.column('Fuzzy', width = 50)
+		# First column
+		self.tree.column('#0', width=300)
+		self.tree.heading('#0', text="Song name")
+
+		self.tree.column('Fuzzy', width=50)
 
 		i = 0
-		for song in songArray:
-			valueString = '"' + song[1] + '" ' + '"' + song[2] + '" ' + '"' +  song[3] + '" ' + '"' + song[4] + '"'
-			self.tree.insert('', 'end', 'song' + str(i), text=song[0], values = (song[1:5]))
+		for song in self.songArray:
+			self.tree.insert('', 'end', 'song' + str(i), text=song[0], values=(song[1:5]))
 			i = i + 1
-
 
 	def highlightSongs(self):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
 			# Song Name | Album
 			seenSongs = [x.split(" | ") for x in f.readlines()]
-			seenSongs = [x[0].strip() for x in seenSongs]
+			seenSongs = [[x[0].strip(), x[1].strip()] for x in seenSongs]
 
-		for i in range(len(songArray)):
-			if songArray[i][5].lower().find("character song") > 0:
-				self.tree.item('song' + str(i), tags = "cSong")
+		for i in range(len(self.songArray)):
+			if self.songArray[i][5].lower().find("character song") > 0:
+				self.tree.item('song' + str(i), tags="cSong")
 
-			if songArray[i][0] in seenSongs:
-				# TODO: do a fuzzy search for album name
-				self.tree.item('song' + str(i), tags = "sSong")
+			for song in seenSongs:
+				resultsName = fuzz.ratio(self.songArray[i][0].lower(), song[0].lower())
+				resultsAlbum = fuzz.ratio(self.songArray[i][2].lower(), song[1].lower())
+				if resultsName > 60 and resultsAlbum > 70:
+					# TODO: do a fuzzy search for album name
+					self.tree.item('song' + str(i), text=song[0], tags="sSong")
 
-			if songArray[i][0] == "Unparsed":
-				# TODO: do a fuzzy search for album name
-				self.tree.item('song' + str(i), tags = "pSong")
+			if self.songArray[i][0] == "Unparsed":
+				self.tree.item('song' + str(i), tags="pSong")
 
-		self.tree.tag_configure('cSong', foreground = '#%02x%02x%02x' % (35, 118, 252))
-		self.tree.tag_configure('sSong', foreground = '#%02x%02x%02x' % (162, 175, 196))
-		self.tree.tag_configure('pSong', foreground = '#%02x%02x%02x' % (206, 20, 73))
-
+		self.tree.tag_configure('cSong', foreground='#%02x%02x%02x' % (216, 138, 138))
+		self.tree.tag_configure('sSong', foreground='#%02x%02x%02x' % (162, 175, 196))
+		self.tree.tag_configure('pSong', foreground='#%02x%02x%02x' % (206, 20, 73))
 
 	def itemClicked(self, event):
 		song = self.tree.selection()[0]
-		print(self.tree.item(song).get('values')[3])
 		webbrowser.open(self.tree.item(song).get('values')[3])
+
 
 def decode_escapes(s):
 	# Blame Yuru Camp△
@@ -194,6 +203,7 @@ def decode_escapes(s):
 		return codecs.decode(match.group(0), 'unicode-escape')
 
 	return ESCAPE_SEQUENCE_RE.sub(decode_match, s)
+
 
 if __name__ == "__main__":
 
