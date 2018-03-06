@@ -24,8 +24,6 @@ def main():
 def getSongs(pages):
 
 	songDetails = []
-	i = 0
-	nSongs = 0
 
 	pool = multiprocessing.Pool(processes=10)
 	FrontPageList = pool.map(getFrontPage, [x + 1 for x in range(pages)])
@@ -37,17 +35,15 @@ def getSongs(pages):
 		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
 		units = recent.find_all("div", "td-block-span6")
 
-		nSongs = nSongs + len(units)
-
 		for tag in units:
-			songDetails.append([[], [], [], []])
-			songDetails[i][0] = tag.find_all("h3", "entry-title td-module-title")[0].text
-			songDetails[i][1] = tag.find_all("div", "td-excerpt")[0].text
-			songDetails[i][2] = tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href']
-			i = i + 1
+			songDetails.append([tag.find_all("h3", "entry-title td-module-title")[0].text,
+								tag.find_all("div", "td-excerpt")[0].text,
+								tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href'],
+								[]])
 
 	for songs in songDetails:
 		if songs[0] is not None:
+			print(songs[1])
 			tags = songs[1].split("|")
 			for iter in tags:
 				if iter.strip() != "Album" and iter.strip() != "Single":
@@ -154,10 +150,8 @@ class Ui_Form():
 
 		self.tree.column('Fuzzy', width=50)
 
-		i = 0
-		for song in self.songArray:
+		for i, song in enumerate(self.songArray):
 			self.tree.insert('', 'end', 'song' + str(i), text=song[0], values=(song[1:5]))
-			i = i + 1
 
 	def highlightSongs(self):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
