@@ -1,1 +1,2 @@
 # BrightMusic
+BrightMusic is a python utility that parses the front page of a certain music site, cross-references it with your music collection and notifies you of new songs that have come out. Song titles and albums are extracted from the music site and compared to the tags of all mp3/FLAC files in a given directory, and a UI is created where the user can click on certain entries to be led to the corresponding album site.
