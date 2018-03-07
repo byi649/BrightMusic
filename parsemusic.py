@@ -14,11 +14,7 @@ import romkan
 
 
 def main():
-
-	pagesToGet = 5
-	songArray = getSongs(pagesToGet)
-
-	ui = Ui_Form(songArray)
+	ui = Ui_Form()
 
 
 def getSongs(pages):
@@ -36,10 +32,13 @@ def getSongs(pages):
 		units = recent.find_all("div", "td-block-span6")
 
 		for tag in units:
-			songDetails.append([tag.find_all("h3", "entry-title td-module-title")[0].text,
-								tag.find_all("div", "td-excerpt")[0].text,
-								tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href'],
-								[]])
+			detailArray = [
+				tag.find_all("h3", "entry-title td-module-title")[0].text,
+				tag.find_all("div", "td-excerpt")[0].text,
+				tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href'],
+				[]
+			]
+			songDetails.append(detailArray)
 
 	for songs in songDetails:
 		if songs[0] is not None:
@@ -118,22 +117,33 @@ def getSongTitle(url):
 
 class Ui_Form():
 
-	def __init__(self, songArray):
-		self.songArray = songArray
+	def __init__(self):
+		self.pagesToGet = "1"
 		self.root = Tk()
 		self.root.Title = "Songs"
 
-		self.fillTable()
-		self.highlightSongs()
+		self.drawUI()
 
 		self.root.mainloop()
 
-	def fillTable(self):
-		columns = ['Tag', 'Anime', 'Fuzzy', 'Link']
-		self.tree = ttk.Treeview(self.root, columns=(columns), height=(len(self.songArray)))
-		self.tree.pack(side='left', fill='y')
+	def drawUI(self):
 
-		self.vsb = ttk.Scrollbar(self.root, orient="vertical", command=self.tree.yview)
+		# Draw frames
+		self.tableFrame = Frame(self.root)
+		self.tableFrame.pack(side='left', fill='both', expand=1)
+
+		self.inputFrame = Frame(self.root)
+		self.inputFrame.pack(side='top', pady='10', padx='10')
+
+		self.buttonFrame = Frame(self.root)
+		self.buttonFrame.pack(side='top')
+
+		# Draw table
+		columns = ['Tag', 'Anime', 'Fuzzy', 'Link']
+		self.tree = ttk.Treeview(self.tableFrame, columns=(columns), height=3)
+		self.tree.pack(side='left', fill='both', expand=1)
+
+		self.vsb = ttk.Scrollbar(self.tableFrame, orient="vertical", command=self.tree.yview)
 		self.vsb.pack(side='right', fill='y')
 		self.vsb.pack_propagate(False)
 		self.tree.configure(yscrollcommand=self.vsb.set)
@@ -144,14 +154,36 @@ class Ui_Form():
 			self.tree.column(items, width=200)
 			self.tree.heading(items, text=items)
 
-		# First column
 		self.tree.column('#0', width=300)
 		self.tree.heading('#0', text="Song name")
 
 		self.tree.column('Fuzzy', width=50)
 
+		# Draw button
+		self.updateButton = Button(self.buttonFrame, text="Get song list", command=self.updateTableItems)
+		self.updateButton.pack(side='bottom')
+
+		# Draw pages input box
+		self.pageInput = Entry(self.inputFrame, textvariable=self.pagesToGet)
+		self.pageInput.insert(0, "1")
+		self.pageInput.pack(side='right')
+
+		# Draw pages input label
+		self.pageLabel = Label(self.inputFrame, text="Pages to get: ")
+		self.pageLabel.pack(side='left')
+
+	def fillTable(self):
+		self.tree.configure(height=(len(self.songArray)))
 		for i, song in enumerate(self.songArray):
 			self.tree.insert('', 'end', 'song' + str(i), text=song[0], values=(song[1:5]))
+
+	def updateTableItems(self):
+		self.songArray = getSongs(int(self.pageInput.get()))
+		x = self.tree.get_children()
+		for item in x:
+			self.tree.delete(item)
+		self.fillTable()
+		self.highlightSongs()
 
 	def highlightSongs(self):
 		with open("seen.txt", "r", encoding="utf-8-sig") as f:
