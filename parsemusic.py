@@ -80,7 +80,7 @@ def getSongs(pages):
 		wantedSongs[i][0] = songTitleList[i]
 		if wantedSongs[i][0] in [x[0] for x in filteredSongs]:
 			for j in range(len(filteredSongs)):
-				if wantedSongs[i][0] == filteredSongs[j][0] and wantedSongs[i][3] > filteredSongs[j][3]:
+				if wantedSongs[i][0] == filteredSongs[j][0] and int(wantedSongs[i][3]) > int(filteredSongs[j][3]):
 					del filteredSongs[j]
 					filteredSongs.insert(j, wantedSongs[i])
 		else:
@@ -169,7 +169,7 @@ class Ui_Form():
 		self.pageInput.pack(side='right')
 
 		# Draw pages input label
-		self.pageLabel = Label(self.inputFrame, text="Pages to get: ")
+		self.pageLabel = Label(self.inputFrame, text="Number of pages to get: ")
 		self.pageLabel.pack(side='left')
 
 	def fillTable(self):
