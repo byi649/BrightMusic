@@ -3,6 +3,7 @@ import mutagen
 
 directory = r"C:\Users\Benjamin\Music\MusicBee\Music\anime"
 
+# TODO: split into read, write - then parallelise
 with open("seen.txt", "w", encoding="utf8") as f:
     for filename in os.scandir(directory):
         if filename.name.endswith(".mp3"):

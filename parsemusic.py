@@ -127,7 +127,6 @@ class Ui_Form():
 		self.root.mainloop()
 
 	def drawUI(self):
-
 		# Draw frames
 		self.tableFrame = Frame(self.root)
 		self.tableFrame.pack(side='left', fill='both', expand=1)
