@@ -1,7 +1,7 @@
 import os
 import mutagen
 
-directory = r"C:\Users\Benjamin\Music\MusicBee\Music\anime"
+directory = r"D:\Music\MusicBee\Music\anime"
 
 # TODO: split into read, write - then parallelise
 with open("seen.txt", "w", encoding="utf8") as f:
