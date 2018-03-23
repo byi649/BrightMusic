@@ -68,7 +68,7 @@ def getSongs(pages):
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70:
 						parseList.append(songs[2])
-						wantedSongs.append([songs[0], tag, anime, str(results), songs[2], songs[0]])
+						wantedSongs.append([songs[0], tag, anime, str(results), songs[2], ''])
 
 	pool = multiprocessing.Pool(processes=10)
 	songTitleList = pool.map(getSongTitle, parseList)
@@ -77,10 +77,10 @@ def getSongs(pages):
 	filteredSongs = []
 
 	for i in range(len(wantedSongs)):
-		wantedSongs[i][0] = songTitleList[i]
-		if wantedSongs[i][0] in [x[0] for x in filteredSongs]:
+		wantedSongs[i][5] = songTitleList[i]
+		if wantedSongs[i][5] in [x[5] for x in filteredSongs]:
 			for j in range(len(filteredSongs)):
-				if wantedSongs[i][0] == filteredSongs[j][0] and int(wantedSongs[i][3]) > int(filteredSongs[j][3]):
+				if wantedSongs[i][5] == filteredSongs[j][5] and int(wantedSongs[i][3]) > int(filteredSongs[j][3]):
 					del filteredSongs[j]
 					filteredSongs.insert(j, wantedSongs[i])
 		else:
@@ -191,17 +191,17 @@ class Ui_Form():
 			seenSongs = [[x[0].strip(), x[1].strip()] for x in seenSongs]
 
 		for i in range(len(self.songArray)):
-			if self.songArray[i][5].lower().find("character song") > 0:
+			if self.songArray[i][0].lower().find("character") >= 0:
 				self.tree.item('song' + str(i), tags="cSong")
 
 			for song in seenSongs:
-				resultsName = fuzz.ratio(self.songArray[i][0].lower(), song[0].lower())
+				resultsName = fuzz.ratio(self.songArray[i][5].lower(), song[0].lower())
 				resultsAlbum = fuzz.ratio(self.songArray[i][2].lower(), song[1].lower())
 				if resultsName > 60 and resultsAlbum > 70:
 					# TODO: do a fuzzy search for album name
 					self.tree.item('song' + str(i), text=song[0], tags="sSong")
 
-			if self.songArray[i][0] == "Unparsed":
+			if self.songArray[i][5] == "Unparsed":
 				self.tree.item('song' + str(i), tags="pSong")
 
 		self.tree.tag_configure('cSong', foreground='#%02x%02x%02x' % (216, 138, 138))
