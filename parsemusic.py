@@ -91,7 +91,10 @@ def getSongs(pages):
 
 def getFrontPage(pageNumber):
 	print(str(datetime.now()), ": Downloading page", str(pageNumber))
-	r = requests.get('http://hikarinoakariost.info/page/' + str(pageNumber))
+	if pageNumber == 1:
+		r = requests.get('http://hikarinoakariost.info')
+	else:
+		r = requests.get('http://hikarinoakariost.info/page/' + str(pageNumber))
 	return r
 
 
@@ -192,6 +195,8 @@ class Ui_Form():
 
 		for i in range(len(self.songArray)):
 			if self.songArray[i][0].lower().find("character") >= 0:
+				self.tree.item('song' + str(i), tags="cSong")
+			if self.songArray[i][0].lower().find("original soundtrack") >= 0:
 				self.tree.item('song' + str(i), tags="cSong")
 
 			for song in seenSongs:
