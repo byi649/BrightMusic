@@ -198,6 +198,10 @@ class Ui_Form():
 				self.tree.item('song' + str(i), tags="cSong")
 			if self.songArray[i][0].lower().find("original soundtrack") >= 0:
 				self.tree.item('song' + str(i), tags="cSong")
+			if self.songArray[i][0].lower().find("original sound track") >= 0:
+				self.tree.item('song' + str(i), tags="cSong")
+			if self.songArray[i][0].lower().find("bonus cd") >= 0:
+				self.tree.item('song' + str(i), tags="cSong")
 
 			for song in seenSongs:
 				resultsName = fuzz.ratio(self.songArray[i][5].lower(), song[0].lower())
