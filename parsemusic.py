@@ -60,20 +60,28 @@ def getSongs(pages):
 	wantedSongs = []
 	parseList = []
 
-	for anime in list:
-		for songs in songDetails:
+	for songs in songDetails:
+		best = 0
+		for anime in list:
+
 			if songs[0] is not None:
 				for tag in songs[3]:
 					anime = decode_escapes(anime)
 					results = fuzz.ratio(tag.lower(), anime.lower())
-					if results > 70:
-						parseList.append(songs[2])
-						wantedSongs.append([songs[0], tag, anime, str(results), songs[2], ''])
+					if results > 70 and results > best:
+						tempsongs = songs[2]
+						tempwanted = [songs[0], tag, anime, str(results), songs[2], '']
+						best = results
+
+		if best > 70:
+			parseList.append(tempsongs)
+			wantedSongs.append(tempwanted)
 
 	pool = multiprocessing.Pool(processes=10)
 	songTitleList = pool.map(getSongTitle, parseList)
 
 	# Very inefficient - TODO: cut down on the loops
+	# Mostly unnecessary now - TODO: find out what's required and what can be cut
 	filteredSongs = []
 
 	for i in range(len(wantedSongs)):
