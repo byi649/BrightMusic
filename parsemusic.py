@@ -11,6 +11,8 @@ from tkinter import ttk
 import html
 import codecs
 import romkan
+import asyncio
+from aiohttp import ClientSession
 
 
 def main():
@@ -21,12 +23,11 @@ def getSongs(pages):
 
 	songDetails = []
 
-	pool = multiprocessing.Pool(processes=10)
-	FrontPageList = pool.map(getFrontPage, [x + 1 for x in range(pages)])
+	FrontPageList = getFrontPage(pages)
 
 	for count in range(pages):
-		r = FrontPageList[count]
-		soup = BeautifulSoup(r.content, "lxml")
+		r = FrontPageList[count].decode('utf-8')
+		soup = BeautifulSoup(r, 'html.parser')
 
 		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
 		units = recent.find_all("div", "td-block-span6")
@@ -54,13 +55,13 @@ def getSongs(pages):
 	r2 = requests.get('https://myanimelist.net/animelist/Shironi')
 	malsoup = BeautifulSoup(r2.content, "lxml")
 
-	list = malsoup.find_all("table")[0]['data-items']
-	list = regex.findall(r'(?<="anime_title":").+?(?=")', list, flags=regex.IGNORECASE)
+	animelist = malsoup.find_all("table")[0]['data-items']
+	animelist = regex.findall(r'(?<="anime_title":").+?(?=")', animelist, flags=regex.IGNORECASE)
 
 	wantedSongs = []
 	parseList = []
 
-	for anime in list:
+	for anime in animelist:
 		for songs in songDetails:
 			if songs[0] is not None:
 				for tag in songs[3]:
@@ -89,13 +90,34 @@ def getSongs(pages):
 	return filteredSongs
 
 
-def getFrontPage(pageNumber):
-	print(str(datetime.now()), ": Downloading page", str(pageNumber))
-	if pageNumber == 1:
-		r = requests.get('http://hikarinoakariost.info')
-	else:
-		r = requests.get('http://hikarinoakariost.info/page/' + str(pageNumber))
-	return r
+def getFrontPage(pages):
+
+	async def fetch(url, session):
+		print(str(datetime.now()), ": Downloading page", url)
+		async with session.get(url) as response:
+			return await response.read()
+
+	async def run():
+		url = "http://hikarinoakariost.info/page/{}"
+		tasks = []
+
+		# Fetch all responses within one Client session,
+		# keep connection alive for all requests.
+		async with ClientSession() as session:
+			task = fetch('http://hikarinoakariost.info', session)
+			tasks.append(task)
+			for i in range(2, pages+1):
+				task = fetch(url.format(i), session)
+				tasks.append(task)
+
+			responses = await asyncio.gather(*tasks)
+			# you now have all response bodies in this variable
+			return responses
+
+	loop = asyncio.get_event_loop()
+	FrontPageList = loop.run_until_complete(run())
+
+	return FrontPageList
 
 
 def getSongTitle(url):
