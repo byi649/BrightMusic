@@ -87,32 +87,37 @@ def getSongs(pages):
 
 def getFrontPage(pages):
 
-	urls = ['http://hikarinoakariost.info'] + ['http://hikarinoakariost.info/page/{}'.format(n) for n in range(2, pages+1)]
-	CONNECTIONS = 100
-	TIMEOUT = 20
-	FrontPageList = []
+	if pages == 1:
+		FrontPageList = [requests.get('http://hikarinoakariost.info').text]
 
-	def load_url(url, timeout):
-		print(str(datetime.now()), ": Downloading page", url)
-		ans = requests.get(url, timeout=timeout)
-		return ans.text
+	else:
 
-	with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
-		future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
-		for future in concurrent.futures.wait(future_to_url)[0]:
-			try:
-				data = future.result()
-			except Exception as exc:
-				data = str(type(exc))
-			finally:
-				FrontPageList.append(data)
+		urls = ['http://hikarinoakariost.info'] + ['http://hikarinoakariost.info/page/{}'.format(n) for n in range(2, pages+1)]
+		CONNECTIONS = 10
+		TIMEOUT = 20
+		FrontPageList = []
+
+		def load_url(url, timeout):
+			print(str(datetime.now()), ": Downloading page", url)
+			ans = requests.get(url, timeout=timeout)
+			return ans.text
+
+		with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
+			future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
+			for future in concurrent.futures.wait(future_to_url)[0]:
+				try:
+					data = future.result()
+				except Exception as exc:
+					data = str(type(exc))
+				finally:
+					FrontPageList.append(data)
 
 	return FrontPageList
 
 
 def getSongTitle(urls):
 
-	CONNECTIONS = 100
+	CONNECTIONS = 10
 	TIMEOUT = 20
 	songTitleList = {}
 
