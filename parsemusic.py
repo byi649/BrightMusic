@@ -11,8 +11,7 @@ from tkinter import ttk
 import html
 import codecs
 import romkan
-import asyncio
-from aiohttp import ClientSession
+import concurrent.futures
 
 
 def main():
@@ -26,7 +25,7 @@ def getSongs(pages):
 	FrontPageList = getFrontPage(pages)
 
 	for count in range(pages):
-		r = FrontPageList[count].decode('utf-8')
+		r = FrontPageList[count]
 		soup = BeautifulSoup(r, 'html.parser')
 
 		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
@@ -61,20 +60,27 @@ def getSongs(pages):
 	wantedSongs = []
 	parseList = []
 
-	for anime in animelist:
-		for songs in songDetails:
+	for songs in songDetails:
+		best = 0
+		for anime in animelist:
+
 			if songs[0] is not None:
 				for tag in songs[3]:
 					anime = decode_escapes(anime)
 					results = fuzz.ratio(tag.lower(), anime.lower())
-					if results > 70:
-						parseList.append(songs[2])
-						wantedSongs.append([songs[0], tag, anime, str(results), songs[2], ''])
+					if results > 70 and results > best:
+						tempsongs = songs[2]
+						tempwanted = [songs[0], tag, anime, str(results), songs[2], '']
+						best = results
 
-	pool = multiprocessing.Pool(processes=10)
-	songTitleList = pool.map(getSongTitle, parseList)
+		if best > 70:
+			parseList.append(tempsongs)
+			wantedSongs.append(tempwanted)
+
+	songTitleList = getSongTitle(parseList)
 
 	# Very inefficient - TODO: cut down on the loops
+	# Mostly unnecessary now - TODO: find out what's required and what can be cut
 	filteredSongs = []
 
 	for i in range(len(wantedSongs)):
@@ -92,53 +98,69 @@ def getSongs(pages):
 
 def getFrontPage(pages):
 
-	async def fetch(url, session):
+	urls = ['http://hikarinoakariost.info'] + ['http://hikarinoakariost.info/page/{}'.format(n) for n in range(2, pages+1)]
+	CONNECTIONS = 100
+	TIMEOUT = 20
+	FrontPageList = []
+
+	def load_url(url, timeout):
 		print(str(datetime.now()), ": Downloading page", url)
-		async with session.get(url) as response:
-			return await response.read()
+		ans = requests.get(url, timeout=timeout)
+		return ans.text
 
-	async def run():
-		url = "http://hikarinoakariost.info/page/{}"
-		tasks = []
-
-		# Fetch all responses within one Client session,
-		# keep connection alive for all requests.
-		async with ClientSession() as session:
-			task = fetch('http://hikarinoakariost.info', session)
-			tasks.append(task)
-			for i in range(2, pages+1):
-				task = fetch(url.format(i), session)
-				tasks.append(task)
-
-			responses = await asyncio.gather(*tasks)
-			# you now have all response bodies in this variable
-			return responses
-
-	loop = asyncio.get_event_loop()
-	FrontPageList = loop.run_until_complete(run())
+	with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
+		future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
+		for future in concurrent.futures.as_completed(future_to_url):
+			try:
+				data = future.result()
+			except Exception as exc:
+				data = str(type(exc))
+			finally:
+				FrontPageList.append(data)
 
 	return FrontPageList
 
 
-def getSongTitle(url):
-	print(str(datetime.now()), ": Downloading song page", url)
-	r = requests.get(url).text
-	# Parse these formats, regardless of whitespace:
-	# > 01 SONGNAME
-	# > 1 SONGNAME
-	# > 1. SONGNAME
-	# > 01. SONGNAME
-	# TODO: super fragile, replace with something more robust
-	try:
-		name = regex.findall(r'(?<=>[\s0]*1[.\s]+).+?(?=<)', r)[0]
-	except Exception as e:
-		print(url)
-		name = "Unparsed"
+def getSongTitle(urls):
 
-	name = html.unescape(name.strip())
-	name = romkan.to_roma(name)
-	return name
+	CONNECTIONS = 100
+	TIMEOUT = 20
+	songTitleList = []
 
+	def load_url(url, timeout):
+		print(str(datetime.now()), ": Downloading song page", url)
+		ans = requests.get(url, timeout=timeout)
+		return ans.text
+
+	with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
+		future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
+		for future in concurrent.futures.wait(future_to_url)[0]:
+			try:
+				data = future.result()
+			except Exception as exc:
+				data = str(type(exc))
+			finally:
+				songTitleList.append(data)
+
+	for (i, text) in enumerate(songTitleList):
+		r = text
+		# Parse these formats, regardless of whitespace:
+		# > 01 SONGNAME
+		# > 1 SONGNAME
+		# > 1. SONGNAME
+		# > 01. SONGNAME
+		# TODO: super fragile, replace with something more robust
+		try:
+			name = regex.findall(r'(?<=>[\s0]*1[.\s]+).+?(?=<)', r)[0]
+		except Exception:
+			# print(r)
+			name = "Unparsed"
+
+		name = html.unescape(name.strip())
+		name = romkan.to_roma(name)
+		songTitleList[i] = name
+
+	return songTitleList
 
 class Ui_Form():
 
