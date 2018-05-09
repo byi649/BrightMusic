@@ -80,21 +80,10 @@ def getSongs(pages):
 	pool = multiprocessing.Pool(processes=10)
 	songTitleList = pool.map(getSongTitle, parseList)
 
-	# Very inefficient - TODO: cut down on the loops
-	# Mostly unnecessary now - TODO: find out what's required and what can be cut
-	filteredSongs = []
-
 	for i in range(len(wantedSongs)):
 		wantedSongs[i][5] = songTitleList[i]
-		if wantedSongs[i][5] in [x[5] for x in filteredSongs]:
-			for j in range(len(filteredSongs)):
-				if wantedSongs[i][5] == filteredSongs[j][5] and int(wantedSongs[i][3]) > int(filteredSongs[j][3]):
-					del filteredSongs[j]
-					filteredSongs.insert(j, wantedSongs[i])
-		else:
-			filteredSongs.append(wantedSongs[i])
 
-	return filteredSongs
+	return wantedSongs
 
 
 def getFrontPage(pageNumber):
