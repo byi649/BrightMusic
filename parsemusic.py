@@ -79,21 +79,10 @@ def getSongs(pages):
 
 	songTitleList = getSongTitle(parseList)
 
-	# Very inefficient - TODO: cut down on the loops
-	# Mostly unnecessary now - TODO: find out what's required and what can be cut
-	filteredSongs = []
-
 	for i in range(len(wantedSongs)):
 		wantedSongs[i][5] = songTitleList[i]
-		if wantedSongs[i][5] in [x[5] for x in filteredSongs]:
-			for j in range(len(filteredSongs)):
-				if wantedSongs[i][5] == filteredSongs[j][5] and int(wantedSongs[i][3]) > int(filteredSongs[j][3]):
-					del filteredSongs[j]
-					filteredSongs.insert(j, wantedSongs[i])
-		else:
-			filteredSongs.append(wantedSongs[i])
 
-	return filteredSongs
+	return wantedSongs
 
 
 def getFrontPage(pages):
@@ -110,7 +99,7 @@ def getFrontPage(pages):
 
 	with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
 		future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
-		for future in concurrent.futures.as_completed(future_to_url):
+		for future in concurrent.futures.wait(future_to_url)[0]:
 			try:
 				data = future.result()
 			except Exception as exc:
@@ -125,22 +114,16 @@ def getSongTitle(urls):
 
 	CONNECTIONS = 100
 	TIMEOUT = 20
-	songTitleList = []
+	songTitleList = {}
 
-	def load_url(url, timeout):
+	def load_url(url, timeout=None):
 		print(str(datetime.now()), ": Downloading song page", url)
 		ans = requests.get(url, timeout=timeout)
 		return ans.text
 
 	with concurrent.futures.ThreadPoolExecutor(max_workers=CONNECTIONS) as executor:
-		future_to_url = {executor.submit(load_url, url, TIMEOUT): url for url in urls}
-		for future in concurrent.futures.wait(future_to_url)[0]:
-			try:
-				data = future.result()
-			except Exception as exc:
-				data = str(type(exc))
-			finally:
-				songTitleList.append(data)
+		results = executor.map(load_url, urls)
+		songTitleList = list(results)
 
 	for (i, text) in enumerate(songTitleList):
 		r = text
