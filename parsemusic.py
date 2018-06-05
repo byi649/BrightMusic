@@ -50,12 +50,31 @@ def getSongs(pages):
 		else:
 			raise UserWarning
 
-	print(str(datetime.now()), ": Downloading MAL page")
-	r2 = requests.get('https://myanimelist.net/animelist/Shironi')
-	malsoup = BeautifulSoup(r2.content, "lxml")
+	query = '''{
+  MediaListCollection(userName: "JohnSmith", type: ANIME) {
+    lists {
+			entries {
+			  media {
+          title {
+            romaji
+            english
+          }
+        }
+			}
+    }
+  }
+}'''
 
-	list = malsoup.find_all("table")[0]['data-items']
-	list = regex.findall(r'(?<="anime_title":").+?(?=")', list, flags=regex.IGNORECASE)
+	print(str(datetime.now()), ": Downloading Anilist page")
+	r = requests.post("https://graphql.anilist.co", json={'query': query})
+
+	cwR = [x['media']['title']['romaji'] for x in r.json()['data']['MediaListCollection']['lists'][0]['entries']]
+	cwE = [x['media']['title']['english'] for x in r.json()['data']['MediaListCollection']['lists'][0]['entries']]
+	cmR = [x['media']['title']['romaji'] for x in r.json()['data']['MediaListCollection']['lists'][3]['entries']]
+	cmE = [x['media']['title']['english'] for x in r.json()['data']['MediaListCollection']['lists'][3]['entries']]
+	list = cwR + cwE + cmR + cmE
+	list = [x for x in list if x is not None]
+	print(list)
 
 	wantedSongs = []
 	parseList = []
