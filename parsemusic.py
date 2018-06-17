@@ -28,14 +28,15 @@ def getSongs(pages):
 		r = FrontPageList[count]
 		soup = BeautifulSoup(r.content, "lxml")
 
-		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
-		units = recent.find_all("div", "td-block-span6")
+		titles = [x.a.text for x in soup.find_all("h2", class_="title")]
+		links = [x.a.get('href') for x in soup.find_all("h2", class_="title")]
+		blurbs = [x.text for x in soup.find_all("div", class_="post-content")]
 
-		for tag in units:
+		for i in range(len(titles)):
 			detailArray = [
-				tag.find_all("h3", "entry-title td-module-title")[0].text,
-				tag.find_all("div", "td-excerpt")[0].text,
-				tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href'],
+				titles[i],
+				blurbs[i],
+				links[i],
 				[]
 			]
 			songDetails.append(detailArray)
@@ -126,7 +127,7 @@ def getSongTitle(url):
 	try:
 		name = regex.findall(r'(?<=>[\s0]*1[.\s]+).+?(?=<)', r)[0]
 	except Exception as e:
-		print(url)
+		print(url, e)
 		name = "Unparsed"
 
 	name = html.unescape(name.strip())
@@ -222,7 +223,7 @@ class Ui_Form():
 			for song in seenSongs:
 				resultsName = fuzz.ratio(self.songArray[i][5].lower(), song[0].lower())
 				resultsAlbum = fuzz.ratio(self.songArray[i][2].lower(), song[1].lower())
-				if resultsName > 60 and resultsAlbum > 70:
+				if resultsName > 80: # and resultsAlbum > 70:
 					# TODO: do a fuzzy search for album name
 					self.tree.item('song' + str(i), text=song[0], tags="sSong")
 
