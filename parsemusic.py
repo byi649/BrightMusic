@@ -28,15 +28,27 @@ def getSongs(pages):
 		r = FrontPageList[count]
 		soup = BeautifulSoup(r.content, "lxml")
 
-		titles = [x.a.text for x in soup.find_all("h2", class_="title")]
-		links = [x.a.get('href') for x in soup.find_all("h2", class_="title")]
-		blurbs = [x.text for x in soup.find_all("div", class_="post-content")]
+		# titles = [x.a.text for x in soup.find_all("h2", class_="title")]
+		# links = [x.a.get('href') for x in soup.find_all("h2", class_="title")]
+		# blurbs = [x.text for x in soup.find_all("div", class_="post-content")]
 
-		for i in range(len(titles)):
+		# for i in range(len(titles)):
+		# 	detailArray = [
+		# 		titles[i],
+		# 		blurbs[i],
+		# 		links[i],
+		# 		[]
+		# 	]
+		# 	songDetails.append(detailArray)
+
+		recent = soup.find_all("div", "td-pb-span8 td-main-content")[0]
+		units = recent.find_all("div", "td-block-span6")
+
+		for tag in units:
 			detailArray = [
-				titles[i],
-				blurbs[i],
-				links[i],
+				tag.find_all("h3", "entry-title td-module-title")[0].text,
+				tag.find_all("div", "td-excerpt")[0].text,
+				tag.find_all("h3", "entry-title td-module-title")[0].find_all("a", href=True)[0]['href'],
 				[]
 			]
 			songDetails.append(detailArray)
