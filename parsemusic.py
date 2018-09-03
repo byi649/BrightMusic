@@ -81,8 +81,8 @@ def getSongs(pages):
 	print(str(datetime.now()), ": Downloading Anilist page")
 	r = requests.post("https://graphql.anilist.co", json={'query': query})
 
-	cwR = [x['media']['title']['romaji'] for x in r.json()['data']['MediaListCollection']['lists'][0]['entries']]
-	cwE = [x['media']['title']['english'] for x in r.json()['data']['MediaListCollection']['lists'][0]['entries']]
+	cwR = [x['media']['title']['romaji'] for x in r.json()['data']['MediaListCollection']['lists'][2]['entries']]
+	cwE = [x['media']['title']['english'] for x in r.json()['data']['MediaListCollection']['lists'][2]['entries']]
 	cmR = [x['media']['title']['romaji'] for x in r.json()['data']['MediaListCollection']['lists'][3]['entries']]
 	cmE = [x['media']['title']['english'] for x in r.json()['data']['MediaListCollection']['lists'][3]['entries']]
 	list = cwR + cwE + cmR + cmE
@@ -101,6 +101,12 @@ def getSongs(pages):
 					anime = decode_escapes(anime)
 					results = fuzz.ratio(tag.lower(), anime.lower())
 					if results > 70 and results > best:
+
+						char_list = [songs[0][k] for k in range(len(songs[0])) if ord(songs[0][k]) in range(65536)]
+						songs[0] = ''
+						for j in char_list:
+							songs[0] = songs[0] + j
+
 						tempsongs = songs[2]
 						tempwanted = [songs[0], tag, anime, str(results), songs[2], '']
 						best = results
